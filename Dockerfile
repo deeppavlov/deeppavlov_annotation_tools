@@ -9,7 +9,7 @@ RUN apt-get --yes install python-numpy python-pandas python-scipy
 RUN pip install protobuf tqdm wheel
 
 # Clone the BigARTM repository, build and install
-RUN git clone --branch v0.8.2 --depth=1 https://github.com/bigartm/bigartm.git
+RUN git clone --branch=stable --depth=1 https://github.com/bigartm/bigartm.git
 WORKDIR bigartm
 RUN mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr .. && make -j && make install
 RUN cd 3rdparty/protobuf-3.0.0/python && setup.py build && python setup.py install
