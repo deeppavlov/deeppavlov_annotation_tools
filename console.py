@@ -5,10 +5,39 @@ import logging
 import os
 from typing import List
 
+from flask import Flask
+from flask_restful import Resource, Api, reqparse
+from flask_cors import CORS
 import spacy
 
 from keyword_extraction.tokenization import BaseTextPreprocessor
 from keyword_extraction.keyword_extraction import KeywordExtractor
+from ner.ner import NamedEntityRecognizer
+
+
+def create_keywords_ner(args) -> NamedEntityRecognizer:
+    keywords_list_name = os.path.normpath(args.destination_keywords_list)
+    assert os.path.isfile(keywords_list_name), 'The file `{0}` does not exist!'.format(keywords_list_name)
+    return NamedEntityRecognizer(spacy_model_name=args.spacy_lang, keywords_dictionary_name=keywords_list_name)
+
+
+def ner_rest_api_service(cmd_args):
+
+    class NerRestApi(Resource):
+        recognizer = create_keywords_ner(cmd_args)
+
+        def post(self):
+            request_args = parser.parse_args()
+            recognition_results = self.recognizer.recognize(request_args["text"])
+            return {'text': request_args["text"], 'named_entities': recognition_results}
+
+    app = Flask(__name__)
+    cors = CORS(app, resources={r"/*": {"origins": "*"}})
+    api = Api(app)
+    parser = reqparse.RequestParser()
+    parser.add_argument('text')
+    api.add_resource(NerRestApi, '/ner')
+    app.run(host = cmd_args.host_name, port = cmd_args.port_number)
 
 
 def select_text_files(dir_name: str) -> List[str]:
@@ -54,7 +83,7 @@ def select_keywords(args):
 
 
 def use_ner(args):
-    pass
+    ner_rest_api_service(args)
 
 
 def train_ner(args):
@@ -87,6 +116,11 @@ def main():
                                          help='Do we want to use the noun phrases for keyword selection?')
     parser_prepare_keywords.add_argument('--verbs', dest='use_verbs', action='store_true', required=False,
                                          help='Do we want to use the root verbs for keyword selection?')
+
+    parser_ner.add_argument('-k', '--keywords', dest='keywords_list', type=str, required=True,
+                            help='Name of text file with keywords list.')
+    parser_ner.add_argument('--spacy', dest='spacy_lang', type=str, required=False,
+                            default='en_core_web_lg', help='The SpaCy model name.')
 
     args = main_parser.parse_args()
     if args.usage == 'keywords':
