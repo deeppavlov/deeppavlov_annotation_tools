@@ -12,7 +12,7 @@ RUN pip install setuptools protobuf tqdm wheel
 RUN git clone --branch=stable --depth=1 https://github.com/bigartm/bigartm.git
 WORKDIR bigartm
 RUN mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr .. && make -j && make install
-RUN cd 3rdparty/protobuf-3.0.0/python && setup.py build && python setup.py install
+RUN cd 3rdparty/protobuf-3.0.0/python && python setup.py build && python setup.py install
 RUN cd python && python setup.py install
 ENV ARTM_SHARED_LIBRARY=/tmp/bigartm/build/lib/libartm.so
 
