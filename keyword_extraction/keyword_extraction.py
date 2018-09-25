@@ -36,28 +36,32 @@ class KeywordExtractor:
         if not os.path.isdir(dir_name):
             raise ValueError('`{0}` is incorrect name for a topic model! Directory `{1}` does not exist!'.format(
                 self.topic_model_name, dir_name))
-        collection_name = os.path.normpath(os.path.join(dir_name, base_name + '.collection'))
-        collection_docword_name = os.path.normpath(os.path.join(dir_name, 'docword.' + base_name + '.collection'))
-        collection_vocab_name = os.path.normpath(os.path.join(dir_name, 'vocab.' + base_name + '.collection'))
-        if (not os.path.isfile(collection_docword_name)) or (not os.path.isfile(collection_vocab_name)):
-            self.create_collection_as_bow_uci(list_of_files, preprocessor, spacy_nlp, collection_docword_name,
-                                              collection_vocab_name)
-        batches_path = os.path.normpath(os.path.join(dir_name, base_name + '.data_batches'))
-        if os.path.isdir(batches_path):
-            batch_vectorizer = artm.BatchVectorizer(data_path=batches_path, data_format='batches')
-        else:
-            batch_vectorizer = artm.BatchVectorizer(data_path=dir_name, data_format='bow_uci',
-                                                    collection_name=collection_name, target_folder=batches_path)
         dictionary = artm.Dictionary()
-        dictionary_name = os.path.normpath(topic_model_name + '.dictionary')
+        dictionary_name = os.path.normpath(topic_model_name + '_dictionary.dict')
+        batches_path = os.path.normpath(os.path.join(dir_name, base_name + '.data_batches'))
         if os.path.isfile(dictionary_name):
             dictionary.load(dictionary_name)
+            topic_model = self.load_topic_model(artm.ARTM(num_topics=self.number_of_topics, dictionary=dictionary,
+                                                          cache_theta=False), topic_model_name)
+            if topic_model is None:
+                raise ValueError('The trained topic model cannot be loaded from the file `{0}`!'.format(
+                    topic_model_name))
         else:
+            collection_name = os.path.normpath(os.path.join(dir_name, base_name + '_collection'))
+            collection_docword_name = os.path.normpath(
+                os.path.join(dir_name, 'docword.' + base_name + '_collection.txt'))
+            collection_vocab_name = os.path.normpath(os.path.join(dir_name, 'vocab.' + base_name + '_collection.txt'))
+            if (not os.path.isfile(collection_docword_name)) or (not os.path.isfile(collection_vocab_name)):
+                self.create_collection_as_bow_uci(list_of_files, preprocessor, spacy_nlp, collection_docword_name,
+                                                  collection_vocab_name)
+            if os.path.isdir(batches_path):
+                batch_vectorizer = artm.BatchVectorizer(data_path=batches_path, data_format='batches')
+            else:
+                batch_vectorizer = artm.BatchVectorizer(data_path=dir_name, data_format='bow_uci',
+                                                        collection_name=os.path.basename(collection_name),
+                                                        target_folder=batches_path)
             dictionary.gather(data_path=batches_path)
             dictionary.save(dictionary_name)
-        topic_model = self.load_topic_model(artm.ARTM(num_topics=self.number_of_topics, dictionary=dictionary,
-                                                      cache_theta=False), topic_model_name)
-        if topic_model is None:
             topic_model = self.create_topic_model(topic_model_name, batch_vectorizer, dictionary)
             if topic_model is None:
                 raise ValueError('The trained topic model cannot be loaded from the file `{0}`!'.format(
@@ -66,19 +70,34 @@ class KeywordExtractor:
 
     def create_collection_as_bow_uci(self, list_of_files: List[str], preprocessor: BaseTextPreprocessor,
                                      spacy_nlp: Language, collection_docword_name: str, collection_vocab_name: str):
+        keyword_extraction_logger.info('Creation of the BOW UCI collection is started.')
         documents = []
         global_token_frequencies = dict()
         for cur_name in list_of_files:
-            for cur_text in preprocessor.get_texts_from_file(cur_name):
-                cur_doc = spacy_nlp(cur_text)
-                tokens = SpaCyTokenizer.tokenize_document(cur_doc, self.extract_noun_phrases, self.extract_root_verbs)
-                if len(tokens) > 0:
-                    token_frequencies = dict()
-                    for cur_token in tokens:
-                        token_frequencies[cur_token] = token_frequencies.get(cur_token.lower(), 0) + 1
-                        global_token_frequencies[cur_token] = global_token_frequencies.get(cur_token, 0) + 1
-                    documents.append(token_frequencies)
-            keyword_extraction_logger.info('File `{0}` has been processed.'.format(cur_name))
+            source_texts_from_file = preprocessor.get_texts_from_file(cur_name)
+            n_texts = len(source_texts_from_file)
+            if n_texts > 1:
+                info_msg = '{0} texts are loaded from the file `{1}`.'.format(n_texts, cur_name)
+            elif n_texts == 1:
+                info_msg = '1 text is loaded from the file `{0}`.'.format(cur_name)
+            else:
+                info_msg = 'No texts are loaded from the file `{0}`.'.format(cur_name)
+            keyword_extraction_logger.info(info_msg)
+            if n_texts > 0:
+                for cur_doc in spacy_nlp.pipe(source_texts_from_file, batch_size=1000, n_threads=os.cpu_count()):
+                    tokens = SpaCyTokenizer.tokenize_document(cur_doc, self.extract_noun_phrases,
+                                                              self.extract_root_verbs)
+                    if len(tokens) > 0:
+                        token_frequencies = dict()
+                        for cur_token in tokens:
+                            token_frequencies[cur_token] = token_frequencies.get(cur_token.lower(), 0) + 1
+                            global_token_frequencies[cur_token] = global_token_frequencies.get(cur_token, 0) + 1
+                        documents.append(token_frequencies)
+                    del tokens
+                    del cur_doc
+            del source_texts_from_file
+            info_msg = 'File `{0}` has been processed.'.format(cur_name)
+            keyword_extraction_logger.info(info_msg)
         IDs_of_tokens = dict([
             (token_text, token_idx + 1) for token_idx, token_text in
             enumerate(sorted(list(global_token_frequencies.keys())))
@@ -95,6 +114,7 @@ class KeywordExtractor:
         with codecs.open(collection_vocab_name, mode='w', encoding='utf-8', errors='ignore') as fp:
             for cur_token in sorted(list(global_token_frequencies.keys())):
                 fp.write('{0}\n'.format(cur_token))
+        keyword_extraction_logger.info('Creation of the BOW UCI collection is finished.')
 
     def select_keywords_from_topic_model(self, topic_model: artm.ARTM) -> List[str]:
         phi = topic_model.get_phi()
@@ -113,7 +133,7 @@ class KeywordExtractor:
                 )
             )
             del column
-        return sorted(list(set_of_keywords))
+        return sorted(list(filter(lambda it: (len(it) > 1) and (not it.isdigit()), list(set_of_keywords))))
 
     def create_topic_model(self, topic_model_name: str, batch_vectorizer: artm.BatchVectorizer,
                            dictionary: artm.Dictionary) -> artm.ARTM:

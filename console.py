@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 import codecs
 import importlib
+import logging
 import os
 from typing import List
 
@@ -68,23 +69,23 @@ def main():
     parser_training = subparsers.add_parser('training')
     parser_prepare_keywords = subparsers.add_parser('keywords')
 
-    parser_prepare_keywords.add_argument('-s', '--src', 'source_dir', type=str, required=True,
+    parser_prepare_keywords.add_argument('-s', '--src', dest='source_dir', type=str, required=True,
                                          help='A directory with source text files.')
-    parser_prepare_keywords.add_argument('-d', '--dst', 'destination_keywords_list', type=str, required=True,
+    parser_prepare_keywords.add_argument('-d', '--dst', dest='destination_keywords_list', type=str, required=True,
                                          help='Name of text file into which a created keywords list will be written.')
-    parser_prepare_keywords.add_argument('-n', '--name', 'topic_model_name', type=str, required=True,
+    parser_prepare_keywords.add_argument('-n', '--name', dest='topic_model_name', type=str, required=True,
                                          help='Name of file into which a created topic model will be written.')
-    parser_prepare_keywords.add_argument('-p', '--preprocessor', 'text_preprocessor', type=str, required=True,
+    parser_prepare_keywords.add_argument('-p', '--preprocessor', dest='text_preprocessor', type=str, required=True,
                                          help='Name of the text preprocessor class.')
-    parser_prepare_keywords.add_argument('--topics', 'topics_number', type=int, required=False, default=50,
+    parser_prepare_keywords.add_argument('--topics', dest='topics_number', type=int, required=False, default=50,
                                          help='Number of topics.')
-    parser_prepare_keywords.add_argument('--probability', 'probability_threshold', type=float, required=False,
+    parser_prepare_keywords.add_argument('--probability', dest='probability_threshold', type=float, required=False,
                                          default=1e-2, help='Minimal probability of keyword.')
-    parser_prepare_keywords.add_argument('--spacy', 'spacy_lang', type=str, required=False, default='en_core_web_lg',
-                                         help='The SpaCy model name.')
-    parser_prepare_keywords.add_argument('--nouns', 'use_nouns', action='store_true', type=bool, required=False,
+    parser_prepare_keywords.add_argument('--spacy', dest='spacy_lang', type=str, required=False,
+                                         default='en_core_web_lg', help='The SpaCy model name.')
+    parser_prepare_keywords.add_argument('--nouns', dest='use_nouns', action='store_true', required=False,
                                          help='Do we want to use the noun phrases for keyword selection?')
-    parser_prepare_keywords.add_argument('--verbs', 'use_verbs', action='store_true', type=bool, required=False,
+    parser_prepare_keywords.add_argument('--verbs', dest='use_verbs', action='store_true', required=False,
                                          help='Do we want to use the root verbs for keyword selection?')
 
     args = main_parser.parse_args()
@@ -99,4 +100,6 @@ def main():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(format='%(filename)s[LINE:%(lineno)d]# %(levelname)-8s [%(asctime)s] %(message)s',
+                        level=logging.INFO)
     main()

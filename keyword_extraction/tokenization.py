@@ -30,12 +30,14 @@ class SpaCyTokenizer:
         for token_idx in range(noun_phrase_start, noun_phrase_end):
             if (not doc[token_idx].is_punct) and (not doc[token_idx].is_space):
                 token_text = doc[token_idx].norm_.strip()
-                if len(token_text) > 0:
+                if (len(token_text) > 0) and token_text.isalnum():
                     tokens.append(token_text)
+        if all(map(lambda it: it.isdigit(), tokens)):
+            return ''
         return '_'.join(tokens)
 
     @staticmethod
-    def tokenize_document(doc: Doc, select_noun_phrases: bool, select_verbs: bool) -> str:
+    def tokenize_document(doc: Doc, select_noun_phrases: bool, select_verbs: bool) -> List[str]:
         n_tokens = len(doc)
         used_words = [False for _ in range(n_tokens)]
         selected_phrases = list()
@@ -101,20 +103,23 @@ class SpaCyTokenizer:
                         used_words[token_idx] = True
                         selected_phrases.append((token_idx, token_idx + 1))
         selected_phrases.sort()
-        return ' '.join(filter(lambda it2: len(it2) > 0, map(lambda it1: SpaCyTokenizer.get_text_of_noun_phrase(
+        return list(filter(lambda it2: len(it2) > 0, map(lambda it1: SpaCyTokenizer.get_text_of_noun_phrase(
             doc, it1[0], it1[1]), selected_phrases)))
 
 
 class BaseTextPreprocessor:
+    def __init__(self):
+        self.__re_for_tokenization = [
+            re.compile(r'\w:\d', re.U), re.compile(r'\d%\w', re.U), re.compile(r'\w[\\/]\w', re.U),
+            re.compile(r'.\w[\\/]', re.U), re.compile(r'\w\+\w', re.U), re.compile(r'.\w\+\S', re.U)
+        ]
+
     def get_texts_from_file(self, file_name: str) -> List[str]:
         raise NotImplemented
 
-    @staticmethod
-    def tokenize_source_text(source_text: str) -> str:
-        re_for_tokenization = [re.compile(r'\w:\d', re.U), re.compile(r'\d%\w', re.U), re.compile(r'\w[\\/]\w', re.U),
-                               re.compile(r'.\w[\\/]', re.U), re.compile(r'\w\+\w', re.U), re.compile(r'.\w\+\S', re.U)]
+    def tokenize_source_text(self, source_text: str) -> str:
         tokenized = source_text.replace('&quot;', '"').replace('&gt;', '>').replace('&lt;', '<')
-        for cur_re in re_for_tokenization:
+        for cur_re in self.__re_for_tokenization:
             search_res = cur_re.search(tokenized)
             while search_res is not None:
                 if (search_res.start() < 0) or (search_res.end() < 0):
@@ -125,8 +130,9 @@ class BaseTextPreprocessor:
         return tokenized
 
 
-class OilAndGasTextPreprocessr(BaseTextPreprocessor):
+class OilAndGasTextPreprocessor(BaseTextPreprocessor):
     def __init__(self):
+        super().__init__()
         special_unicode_characters = {'\u00A0', '\u2003', '\u2002', '\u2004', '\u2005', '\u2006', '\u2009', '\u200A',
                                       '\u0000', '\r', '\n', '\t'}
         self.re_for_space = re.compile('[' + ''.join(special_unicode_characters) + ']+', re.U)
@@ -142,7 +148,7 @@ class OilAndGasTextPreprocessr(BaseTextPreprocessor):
             while len(cur_line) > 0:
                 prep_line = cur_line.strip()
                 if len(prep_line) > 0:
-                    prep_line = self.tokenize_source_text(prep_line).strip()
+                    prep_line = self.tokenize_source_text(prep_line).strip().replace('ﬁ', 'fl')
                     if len(prep_line) > 0:
                         prep_line = self.re_for_space.sub(' ', prep_line).strip()
                         if len(prep_line) > 0:
@@ -169,4 +175,5 @@ class OilAndGasTextPreprocessr(BaseTextPreprocessor):
                             if len(new_text) >= self.min_characters_in_text:
                                 all_texts.append(new_text)
                     lines_of_text.clear()
+                cur_line = fp.readline()
         return all_texts
