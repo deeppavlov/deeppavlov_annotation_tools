@@ -1,30 +1,14 @@
 FROM python:3.6-slim-stretch
 
-# Update and install base dependencies
-RUN apt-get --yes update
-RUN apt-get --yes install -y curl gcc g++ git make cmake build-essential libboost-all-dev
-
-# Install python packages for BigARTM
-RUN apt-get --yes install python-numpy python-pandas python-scipy
-RUN pip install setuptools protobuf tqdm wheel
-
-# Clone the BigARTM repository, build and install
-RUN git clone --branch=v0.9.0 --depth=1 https://github.com/bigartm/bigartm.git
-WORKDIR bigartm
-RUN mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr .. && make -j && make install
-RUN cd 3rdparty/protobuf-3.0.0/python && python setup.py build && python setup.py install
-RUN cd python && python setup.py install
-ENV ARTM_SHARED_LIBRARY=/tmp/bigartm/build/lib/libartm.so
-
-# Create directory for this package
 RUN ["mkdir", "-p", "/usr/local/src/deeppavlov_annotation_tools"]
 ADD . /usr/local/src/deeppavlov_annotation_tools
 WORKDIR /usr/local/src/deeppavlov_annotation_tools
 
-# Install all Python dependencies of this package
+RUN apt-get update
+RUN apt-get install -y curl gcc g++
+
 RUN pip install -r requirements.txt
 
-# Download the SpaCy model for English
 RUN python -m spacy download en_core_web_lg
 
 EXPOSE 80
