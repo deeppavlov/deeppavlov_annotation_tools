@@ -1,29 +1,28 @@
 FROM python:3.6-slim-stretch
 
-RUN ["mkdir", "-p", "/usr/local/src/deeppavlov_annotation_tools"]
-ADD . /usr/local/src/deeppavlov_annotation_tools
-WORKDIR /usr/local/src/deeppavlov_annotation_tools
-
 # Update and install base dependencies
 RUN apt-get --yes update
 RUN apt-get --yes install -y curl gcc g++ git make cmake build-essential libboost-all-dev
 
 # Install python packages for BigARTM
 RUN apt-get --yes install python-numpy python-pandas python-scipy
-wget https://bootstrap.pypa.io/get-pip.py
-python get-pip.py
-pip install protobuf tqdm wheel
+RUN wget https://bootstrap.pypa.io/get-pip.py
+RUN python get-pip.py
+RUN pip install protobuf tqdm wheel
 
-# Clone the BigARTM repository and build
-git clone --branch=stable https://github.com/bigartm/bigartm.git
-cd bigartm
-mkdir build && cd build
-cmake ..
-make
+# Clone the BigARTM repository, build and install
+RUN git clone --branch v0.8.2 --depth=1 https://github.com/bigartm/bigartm.git
+WORKDIR bigartm
+RUN mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr .. && make -j && make install
+RUN cd 3rdparty/protobuf-3.0.0/python && setup.py build && python setup.py install
+RUN cd python && python setup.py install
+ENV ARTM_SHARED_LIBRARY=/tmp/bigartm/build/lib/libartm.so
 
-# Install BigARTM
-make install
-export ARTM_SHARED_LIBRARY=/usr/local/lib/libartm.so
+# Create directory for this package
+
+RUN ["mkdir", "-p", "/usr/local/src/deeppavlov_annotation_tools"]
+ADD . /usr/local/src/deeppavlov_annotation_tools
+WORKDIR /usr/local/src/deeppavlov_annotation_tools
 
 # Install all Python dependencies of this package
 RUN pip install -r requirements.txt
