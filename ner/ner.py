@@ -159,10 +159,13 @@ class NamedEntityRecognizer:
                         entities['equipment'].append((token.i, token.i + 1))
         ner_logger.info('Recognition with NER is finished.')
         for prepared_ne_type in entities:
-            entities[prepared_ne_type] = list(map(
-                lambda it: (doc[it[0]].idx, doc[it[1] - 1].idx + len(doc[it[1] - 1].text)),
-                entities[prepared_ne_type]
-            ))
+            entities[prepared_ne_type] = sorted(
+                list(map(
+                    lambda it: (doc[it[0]].idx, doc[it[1] - 1].idx + len(doc[it[1] - 1].text)),
+                    entities[prepared_ne_type]
+                )),
+                key=lambda it: (it[0], it[1])
+            )
         return entities
 
     @staticmethod
