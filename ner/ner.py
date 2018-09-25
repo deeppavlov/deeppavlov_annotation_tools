@@ -26,7 +26,6 @@ class NamedEntityRecognizer:
         entities = OrderedDict([
             ('equipment', []),
             ('operations', []),
-            ('brand', []),
             ('properties', []),
             ('property_values', [])
         ])
@@ -95,15 +94,16 @@ class NamedEntityRecognizer:
                             can_add = True
                             break
                     if can_add:
+                        can_add = False
                         entities['operations'].append((start_ne_pos, end_ne_pos))
                         for token_idx in range(start_ne_pos, end_ne_pos):
                             used_words[token_idx] = True
-                if is_noun:
+                if is_noun and can_add:
                     entities['equipment'].append((start_ne_pos, end_ne_pos))
                     for token_idx in range(start_ne_pos, end_ne_pos):
                         used_words[token_idx] = True
-        if (len(entities['equipment']) > 0) or (len(entities['brand']) > 0):
-            for cur_entity_bounds in (entities['equipment'] + entities['brand']):
+        if len(entities['equipment']) > 0:
+            for cur_entity_bounds in entities['equipment']:
                 left_pos = cur_entity_bounds[0]
                 right_pos = cur_entity_bounds[1]
                 for token_idx in range(cur_entity_bounds[0], cur_entity_bounds[1]):
@@ -186,7 +186,7 @@ class NamedEntityRecognizer:
     @staticmethod
     def ontonotes_ne_to_our_ne(ontonotes_ne: Union[str, None]) -> str:
         if ontonotes_ne == 'ORG':
-            return 'brand'
+            return 'equipment'
         if ontonotes_ne == 'PRODUCT':
             return 'equipment'
         if ontonotes_ne == 'QUANTITY':
