@@ -6,8 +6,6 @@ RUN apt-get --yes install -y curl gcc g++ git make cmake build-essential libboos
 
 # Install python packages for BigARTM
 RUN apt-get --yes install python-numpy python-pandas python-scipy
-RUN wget https://bootstrap.pypa.io/get-pip.py
-RUN python get-pip.py
 RUN pip install protobuf tqdm wheel
 
 # Clone the BigARTM repository, build and install
