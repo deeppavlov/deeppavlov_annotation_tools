@@ -1,2 +1,5 @@
 spacy>=2.0.0
 bigartm==0.9.0
+flask-restful>=0.3
+flask>=0.12.2
+flask_cors
