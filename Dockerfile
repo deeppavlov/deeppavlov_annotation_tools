@@ -6,7 +6,7 @@ RUN apt-get --yes install -y curl gcc g++ git make cmake build-essential libboos
 
 # Install python packages for BigARTM
 RUN apt-get --yes install python-numpy python-pandas python-scipy
-RUN pip install protobuf tqdm wheel
+RUN pip install setuptools protobuf tqdm wheel
 
 # Clone the BigARTM repository, build and install
 RUN git clone --branch=stable --depth=1 https://github.com/bigartm/bigartm.git
@@ -17,7 +17,6 @@ RUN cd python && python setup.py install
 ENV ARTM_SHARED_LIBRARY=/tmp/bigartm/build/lib/libartm.so
 
 # Create directory for this package
-
 RUN ["mkdir", "-p", "/usr/local/src/deeppavlov_annotation_tools"]
 ADD . /usr/local/src/deeppavlov_annotation_tools
 WORKDIR /usr/local/src/deeppavlov_annotation_tools
