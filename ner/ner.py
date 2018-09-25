@@ -89,9 +89,15 @@ class NamedEntityRecognizer:
                     is_verb = True
             if can_add:
                 if is_verb:
-                    entities['operations'].append((start_ne_pos, end_ne_pos))
+                    can_add = False
                     for token_idx in range(start_ne_pos, end_ne_pos):
-                        used_words[token_idx] = True
+                        if doc[token_idx].dep_ == 'ROOT':
+                            can_add = True
+                            break
+                    if can_add:
+                        entities['operations'].append((start_ne_pos, end_ne_pos))
+                        for token_idx in range(start_ne_pos, end_ne_pos):
+                            used_words[token_idx] = True
                 if is_noun:
                     entities['equipment'].append((start_ne_pos, end_ne_pos))
                     for token_idx in range(start_ne_pos, end_ne_pos):
