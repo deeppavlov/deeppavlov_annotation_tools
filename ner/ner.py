@@ -92,8 +92,8 @@ class NamedEntityRecognizer:
                     entities['operations'].append((start_ne_pos, end_ne_pos))
                     for token_idx in range(start_ne_pos, end_ne_pos):
                         used_words[token_idx] = True
-                elif is_noun:
-                    entities['operations'].append((start_ne_pos, end_ne_pos))
+                if is_noun:
+                    entities['equipment'].append((start_ne_pos, end_ne_pos))
                     for token_idx in range(start_ne_pos, end_ne_pos):
                         used_words[token_idx] = True
         if (len(entities['equipment']) > 0) or (len(entities['brand']) > 0):
@@ -147,9 +147,35 @@ class NamedEntityRecognizer:
                                      (not token.like_num)):
                 if not used_words[token.i]:
                     used_words[token.i] = True
-                    entities['property_values'].append((token.i, token.i + 1))
+                    if self.is_measure(token.text):
+                        entities['property_values'].append((token.i, token.i + 1))
+                    else:
+                        entities['equipment'].append((token.i, token.i + 1))
         ner_logger.info('Recognition with NER is finished.')
+        for prepared_ne_type in entities:
+            entities[prepared_ne_type] = list(map(
+                lambda it: (doc[it[0]].idx, doc[it[1] - 1].idx + len(doc[it[1] - 1].text)),
+                entities[prepared_ne_type]
+            ))
         return entities
+
+    @staticmethod
+    def is_measure(text: str) -> bool:
+        start_idx = -1
+        for idx in range(len(text)):
+            if not text[idx].isdigit():
+                start_idx = idx
+                break
+        if start_idx < 0:
+            return True
+        if start_idx == 0:
+            return False
+        res = True
+        for idx in range(start_idx, len(text)):
+            if text[idx].isdigit():
+                res = False
+                break
+        return res
 
     @staticmethod
     def ontonotes_ne_to_our_ne(ontonotes_ne: Union[str, None]) -> str:
@@ -175,4 +201,4 @@ class NamedEntityRecognizer:
                     res.add(' '.join(list(map(lambda it: it.title(), prep_line.split()))))
                     res.add(prep_line.title())
                 cur_line = fp.readline()
-        return sorted(list(res))
+        return sorted(list(res), key=lambda it: (-len(it), it))

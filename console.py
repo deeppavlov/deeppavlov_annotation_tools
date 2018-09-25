@@ -16,7 +16,7 @@ from ner.ner import NamedEntityRecognizer
 
 
 def create_keywords_ner(args) -> NamedEntityRecognizer:
-    keywords_list_name = os.path.normpath(args.destination_keywords_list)
+    keywords_list_name = os.path.normpath(args.keywords_list)
     assert os.path.isfile(keywords_list_name), 'The file `{0}` does not exist!'.format(keywords_list_name)
     return NamedEntityRecognizer(spacy_model_name=args.spacy_lang, keywords_dictionary_name=keywords_list_name)
 
@@ -121,6 +121,10 @@ def main():
                             help='Name of text file with keywords list.')
     parser_ner.add_argument('--spacy', dest='spacy_lang', type=str, required=False,
                             default='en_core_web_lg', help='The SpaCy model name.')
+    parser_ner.add_argument('--host', dest='host_name', type=str, required=False, default='127.0.0.1',
+                            help='The host name to listen on. Default is 127.0.0.1.')
+    parser_ner.add_argument('--port', dest='port_number', type=int, required=False, default=5000,
+                            help='The port number to listen on. Default is 5000.')
 
     args = main_parser.parse_args()
     if args.usage == 'keywords':
