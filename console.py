@@ -1,6 +1,8 @@
 from argparse import ArgumentParser
 import codecs
+from collections import OrderedDict
 import importlib
+import json
 import logging
 import os
 from typing import List
@@ -87,7 +89,21 @@ def use_ner(args):
 
 
 def train_ner(args):
-    pass
+    names_of_source_files = select_text_files(os.path.normpath(args.source_dir))
+    assert len(names_of_source_files) > 0, 'Directory `{0}` is empty!'.format(args.source_dir)
+    result_file_name = os.path.join(args.output_json)
+    result_file_dir = os.path.dirname(result_file_name)
+    if len(result_file_dir) > 0:
+        assert os.path.isdir(result_file_dir), 'The directory `{0}` does not exist!'.format(result_file_dir)
+    text_preprocessor = create_preprocessor(args.text_preprocessor)
+    recognizer = create_keywords_ner(args)
+    res = list()
+    for cur_file_name in names_of_source_files:
+        for cur_text in text_preprocessor.get_texts_from_file(cur_file_name):
+            named_entities = recognizer.recognize(cur_text)
+            res.append(OrderedDict([('text', cur_text), ('named_entities', named_entities)]))
+    with codecs.open(result_file_name, mode='w', encoding='utf-8', errors='ignore') as fp:
+        json.dump(res, fp, indent=4, ensure_ascii=False)
 
 
 def main():
@@ -132,6 +148,17 @@ def main():
                             help='The host name to listen on. Default is 127.0.0.1.')
     parser_ner.add_argument('--port', dest='port_number', type=int, required=False, default=5000,
                             help='The port number to listen on. Default is 5000.')
+
+    parser_training.add_argument('-k', '--keywords', dest='keywords_list', type=str, required=True,
+                                 help='Name of text file with keywords list.')
+    parser_training.add_argument('--spacy', dest='spacy_lang', type=str, required=False,
+                            default='en_core_web_lg', help='The SpaCy model name.')
+    parser_training.add_argument('-s', '--src', dest='source_dir', type=str, required=True,
+                                 help='A directory with source text files.')
+    parser_training.add_argument('-d', '--dst', dest='output_json', type=str, required=True,
+                                 help='Name of output JSON file with automatic NE labeling.')
+    parser_training.add_argument('-p', '--preprocessor', dest='text_preprocessor', type=str, required=True,
+                                 help='Name of the text preprocessor class.')
 
     args = main_parser.parse_args()
     if args.usage == 'keywords':
