@@ -11,7 +11,6 @@ from flask_cors import CORS
 import spacy
 
 from keyword_extraction.tokenization import BaseTextPreprocessor
-from keyword_extraction.keyword_extraction import KeywordExtractor
 from ner.ner import NamedEntityRecognizer
 
 
@@ -60,6 +59,7 @@ def create_preprocessor(preprocessor_class_name: str) -> BaseTextPreprocessor:
 
 
 def select_keywords(args):
+    from keyword_extraction.keyword_extraction import KeywordExtractor
     keywords_list_name = os.path.normpath(args.destination_keywords_list)
     keywords_list_dir = os.path.dirname(keywords_list_name)
     if len(keywords_list_dir) > 0:
@@ -91,31 +91,38 @@ def train_ner(args):
 
 
 def main():
+    try:
+        from keyword_extraction.keyword_extraction import KeywordExtractor
+        is_bigartm = True
+    except:
+        is_bigartm = False
     main_parser = ArgumentParser()
     subparsers = main_parser.add_subparsers(dest='usage')
 
     parser_ner = subparsers.add_parser('ner')
     parser_training = subparsers.add_parser('training')
-    parser_prepare_keywords = subparsers.add_parser('keywords')
+    if is_bigartm:
+        parser_prepare_keywords = subparsers.add_parser('keywords')
 
-    parser_prepare_keywords.add_argument('-s', '--src', dest='source_dir', type=str, required=True,
-                                         help='A directory with source text files.')
-    parser_prepare_keywords.add_argument('-d', '--dst', dest='destination_keywords_list', type=str, required=True,
-                                         help='Name of text file into which a created keywords list will be written.')
-    parser_prepare_keywords.add_argument('-n', '--name', dest='topic_model_name', type=str, required=True,
-                                         help='Name of file into which a created topic model will be written.')
-    parser_prepare_keywords.add_argument('-p', '--preprocessor', dest='text_preprocessor', type=str, required=True,
-                                         help='Name of the text preprocessor class.')
-    parser_prepare_keywords.add_argument('--topics', dest='topics_number', type=int, required=False, default=50,
-                                         help='Number of topics.')
-    parser_prepare_keywords.add_argument('--probability', dest='probability_threshold', type=float, required=False,
-                                         default=1e-2, help='Minimal probability of keyword.')
-    parser_prepare_keywords.add_argument('--spacy', dest='spacy_lang', type=str, required=False,
-                                         default='en_core_web_lg', help='The SpaCy model name.')
-    parser_prepare_keywords.add_argument('--nouns', dest='use_nouns', action='store_true', required=False,
-                                         help='Do we want to use the noun phrases for keyword selection?')
-    parser_prepare_keywords.add_argument('--verbs', dest='use_verbs', action='store_true', required=False,
-                                         help='Do we want to use the root verbs for keyword selection?')
+        parser_prepare_keywords.add_argument('-s', '--src', dest='source_dir', type=str, required=True,
+                                             help='A directory with source text files.')
+        parser_prepare_keywords.add_argument('-d', '--dst', dest='destination_keywords_list', type=str, required=True,
+                                             help='Name of text file into which a created keywords list will be '
+                                                  'written.')
+        parser_prepare_keywords.add_argument('-n', '--name', dest='topic_model_name', type=str, required=True,
+                                             help='Name of file into which a created topic model will be written.')
+        parser_prepare_keywords.add_argument('-p', '--preprocessor', dest='text_preprocessor', type=str, required=True,
+                                             help='Name of the text preprocessor class.')
+        parser_prepare_keywords.add_argument('--topics', dest='topics_number', type=int, required=False, default=50,
+                                             help='Number of topics.')
+        parser_prepare_keywords.add_argument('--probability', dest='probability_threshold', type=float, required=False,
+                                             default=1e-2, help='Minimal probability of keyword.')
+        parser_prepare_keywords.add_argument('--spacy', dest='spacy_lang', type=str, required=False,
+                                             default='en_core_web_lg', help='The SpaCy model name.')
+        parser_prepare_keywords.add_argument('--nouns', dest='use_nouns', action='store_true', required=False,
+                                             help='Do we want to use the noun phrases for keyword selection?')
+        parser_prepare_keywords.add_argument('--verbs', dest='use_verbs', action='store_true', required=False,
+                                             help='Do we want to use the root verbs for keyword selection?')
 
     parser_ner.add_argument('-k', '--keywords', dest='keywords_list', type=str, required=True,
                             help='Name of text file with keywords list.')
@@ -128,7 +135,10 @@ def main():
 
     args = main_parser.parse_args()
     if args.usage == 'keywords':
-        select_keywords(args)
+        if is_bigartm:
+            select_keywords(args)
+        else:
+            raise ValueError('Keywords cannot be extracted, because the `BigARTM` library is not found!')
     elif args.usage == 'training':
         train_ner(args)
     elif args.usage == 'ner':
